@@ -72,9 +72,7 @@ class NPC:
             
             # Aggiungi la cronologia della conversazione (già contiene i ruoli user e assistant)
             messages.extend(self.history)
-            
-            print("messages:", messages)
-            
+                        
             try:
                 # Chiamata a OpenAI API
                 client = openai.OpenAI()  # Usa le credenziali dell'ambiente
@@ -102,6 +100,7 @@ class NPC:
                         }
                     ],
                     function_call={"name": "npc_response"},
+                    max_tokens=150,
                     temperature=0.8
                 )
                 

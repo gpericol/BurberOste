@@ -11,12 +11,6 @@ from NPC import NPC  # Importiamo la classe NPC
 
 load_dotenv()
 
-# Creazione della directory per salvare i file audio
-AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio')
-if not os.path.exists(AUDIO_DIR):
-    os.makedirs(AUDIO_DIR)
-    print(f"Directory audio creata: {AUDIO_DIR}")
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'chiavesegreta12345')  # Prende la SECRET_KEY dal .env o usa un default
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -42,12 +36,14 @@ npc_instances = {}
 
 # System prompt dell'oste
 oste_prompt = """
-Sei l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale. Sei noto per il tuo carattere burbero, diretto e sospettoso.
+Sei l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale ironico.
+Sei noto per il tuo carattere burbero, diretto e sospettoso.
 
 Devi rispondere come Barnaba, l'oste:
 - Usa un linguaggio colorito, ruvido e a volte scortese.
 - Non usare mai un tono amichevole forzato: anche quando sei contento, rimani burbero.
 - Parla in modo conciso: massimo 2-3 frasi per risposta.
+- Stai parlando con un bardo.
 
 Comportamento:
 - Ami la tua birra, ne sei molto orgoglioso.
@@ -98,16 +94,6 @@ def handle_complete_audio(data):
         
         audio_data = base64.b64decode(data)
         
-        # Salva il file audio nella directory
-        timestamp = int(time.time())
-        audio_filename = f"audio_{request.sid}_{timestamp}.webm"
-        audio_path = os.path.join(AUDIO_DIR, audio_filename)
-        
-        with open(audio_path, 'wb') as audio_file:
-            audio_file.write(audio_data)
-        
-        print(f"File audio salvato: {audio_path}")
-        
         # Crea un buffer in memoria per la trascrizione
         audio_buffer = io.BytesIO(audio_data)
         
@@ -121,8 +107,8 @@ def handle_complete_audio(data):
             emit('npc_response', {
                 'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
-                'user_message': transcription_result,  # Invia anche il messaggio dell'utente
-                'sympathy_level': npc_instances[request.sid].sympathy  # Aggiungiamo il livello di simpatia
+                'user_message': transcription_result,
+                'sympathy_level': npc_instances[request.sid].sympathy
             })
         else:
             # Se per qualche motivo non c'è un'istanza NPC, creiamone una nuova
@@ -140,27 +126,6 @@ def handle_complete_audio(data):
         print(f"Errore durante l'elaborazione dell'audio: {e}")
         emit('error', {'message': f'Errore: {str(e)}'})
 
-@socketio.on('send_message')
-def handle_message(data):
-    message = data.get('message', '')
-    if not message or request.sid not in npc_instances:
-        emit('error', {'message': 'Messaggio vuoto o sessione non valida'})
-        return
-    
-    try:
-        # Ottieni la risposta dall'NPC
-        npc_response = npc_instances[request.sid].get_response(message)
-        # Invia la risposta al client
-        emit('npc_response', {
-            'text': npc_response, 
-            'npc_name': npc_instances[request.sid].name,
-            'user_message': message,  # Aggiungiamo il messaggio dell'utente
-            'sympathy_level': npc_instances[request.sid].sympathy  # Aggiungiamo il livello di simpatia
-        })
-        print(f"Risposta dell'NPC (testo) inviata al client: {request.sid}")
-    except Exception as e:
-        print(f"Errore durante l'elaborazione del messaggio: {e}")
-        emit('error', {'message': f'Errore: {str(e)}'})
 
 def transcribe_audio_from_buffer(audio_buffer):
     if client is None:
@@ -183,7 +148,8 @@ def transcribe_audio_from_buffer(audio_buffer):
         transcription = client.audio.transcriptions.create(
             model="gpt-4o-mini-transcribe",
             file=temp_file,
-            response_format="text"
+            response_format="text",
+            language="it"
         )
         fine_chiamata = time.time()
         tempo_impiegato = fine_chiamata - inizio_chiamata
