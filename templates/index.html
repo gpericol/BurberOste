@@ -3,69 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taverna "Il Cinghiale Ubriaco" - Chiacchiera con l'Oste</title>
-    <!-- Bootstrap CSS -->
+    <title>Taverna "Il Cinghiale Ubriaco"</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <!-- Foglio di stile personalizzato -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="bg-dark text-light min-vh-100 d-flex align-items-center justify-content-center py-5">
+<body class="d-flex align-items-center justify-content-center min-vh-100">
+
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-10">
-                <div class="card bg-dark border-secondary shadow-lg">
-                    <div class="card-header bg-secondary text-white">
-                        <h2 class="mb-0 text-center">Taverna "Il Cinghiale Ubriaco"</h2>
+
+                <div class="card">
+                    <div class="card-header">
+                        Taverna "Il Cinghiale Ubriaco"
                     </div>
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-4">
+
+                    <div class="card-body">
+
+                        <div class="d-flex align-items-center mb-3">
                             <div class="npc-avatar me-3">
-                                <i class="bi bi-person-fill fs-1"></i>
+                                <img src="{{ url_for('static', filename='img/npc_0.png') }}" alt="Oste Barnaba">
                             </div>
                             <div>
-                                <h3 id="npc-name">Oste Barnaba</h3>
-                                <p class="text-muted mb-0">Proprietario del Cinghiale Ubriaco</p>
+                                <h4 class="m-0">Oste Barnaba</h4>
+                                <small class="text-muted">Il burbero oste</small>
                             </div>
                         </div>
-                        
-                        <div id="conversation-box" class="conversation-box mb-4 p-3 border border-secondary rounded bg-dark" style="height: 300px; overflow-y: auto;">
+
+                        <div id="conversation-box" class="conversation-box">
                             <div class="npc-message">
-                                <strong>Oste Barnaba:</strong> <span>Non sei il benvenuto qui!</span>
+                                <strong>Oste Barnaba:</strong> Benvenuto viandante!
                             </div>
                         </div>
-                        
-                        <div class="text-center mt-3">
-                            <div id="recordButton" class="recording-btn mx-auto">
-                                <i class="bi bi-mic-fill"></i> Parla con l'Oste
-                            </div>
-                            <p class="text-muted small mt-2">
-                                Tieni premuto per registrare la tua voce
-                            </p>
+
+                        <div id="recordButton" class="recording-btn mt-3">
+                            <img src="{{ url_for('static', filename='img/mic.png') }}" alt="Microfono" class="mic-icon">
                         </div>
-                        
-                        <div class="mt-4 d-none">
-                            <h5>Trascrizione:</h5>
-                            <div id="transcription" class="transcription">
-                                <p class="text-muted font-italic">La trascrizione apparirà qui...</p>
-                            </div>
+
+                        <div id="status" class="mt-3 text-center p-2">
+                            Pronto a parlare con l'oste!
                         </div>
-                        
-                        <div class="mt-3">
-                            <div id="status" class="alert alert-dark border-secondary small p-2">Pronto per interagire con l'oste</div>
-                        </div>
+
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 
-    <!-- Socket.IO -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Script principale dell'applicazione -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
