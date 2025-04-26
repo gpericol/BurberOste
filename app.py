@@ -11,6 +11,12 @@ from NPC import NPC  # Importiamo la classe NPC
 
 load_dotenv()
 
+# Creazione della directory per salvare i file audio
+AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio')
+if not os.path.exists(AUDIO_DIR):
+    os.makedirs(AUDIO_DIR)
+    print(f"Directory audio creata: {AUDIO_DIR}")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'chiavesegreta12345')  # Prende la SECRET_KEY dal .env o usa un default
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -31,16 +37,12 @@ except Exception as e:
     print("L'applicazione verrà avviata, ma la trascrizione audio non funzionerà.")
     client = None
 
-# Dizionario per tenere traccia delle registrazioni attive
-active_recordings = {}
-# Dizionario per tenere traccia dei timestamp dell'ultimo chunk audio ricevuto
-last_audio_timestamp = {}
 # Dizionario per tenere traccia delle istanze NPC
 npc_instances = {}
 
 # Inizializzazione dell'oste
 oste_prompt = """
-Sei Barnaba, l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale.
+Sei l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale.
 Sei noto per il tuo carattere burbero e diretto.
 
 Caratteristiche del tuo personaggio:
@@ -49,7 +51,7 @@ Caratteristiche del tuo personaggio:
 - La tua locanda è frequentata da avventurieri, mercanti e gente del posto
 - stai parlando con un bardo e tu reputi i bardi dei perditempo
 
-Rispondi in modo conciso (massimo 2-3 frasi) e mantieni sempre il tuo carattere burbero ma saggio.
+Rispondi in modo conciso (massimo 2-3 frasi) e mantieni sempre il tuo carattere burbero.
 """
 
 @app.route('/')
@@ -60,106 +62,65 @@ def index():
 def handle_connect():
     print(f'Client connesso: {request.sid}')
     # Crea un'istanza di NPC per questo client
-    npc_instances[request.sid] = NPC("Oste Barnaba", oste_prompt)
+    npc_instances[request.sid] = NPC("Oste", oste_prompt)
     emit('connect_response', {'status': 'connesso'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f'Client disconnesso: {request.sid}')
-    # Elimina eventuali registrazioni attive e istanze NPC per questo client
-    if request.sid in active_recordings:
-        del active_recordings[request.sid]
-    if request.sid in last_audio_timestamp:
-        del last_audio_timestamp[request.sid]
+    # Elimina istanze NPC per questo client
     if request.sid in npc_instances:
         del npc_instances[request.sid]
 
-@socketio.on('start_recording')
-def handle_start_recording():
-    print(f'Inizio registrazione per il client: {request.sid}')
-    active_recordings[request.sid] = io.BytesIO()
-    last_audio_timestamp[request.sid] = time.time()
-
-@socketio.on('audio_data')
-def handle_audio_data(data):
-    if request.sid not in active_recordings:
-        active_recordings[request.sid] = io.BytesIO()
-        
-    # Aggiorna il timestamp dell'ultimo chunk ricevuto
-    last_audio_timestamp[request.sid] = time.time()
+@socketio.on('complete_audio')
+def handle_complete_audio(data):
+    print(f'Ricevuto audio completo dal client: {request.sid}')
     
-    # Decodifica i dati base64
     try:
-        # Rimuovi l'intestazione del DataURL se presente
+        # Decodifica i dati base64
         if 'base64,' in data:
             data = data.split('base64,')[1]
-            
+        
         audio_data = base64.b64decode(data)
-        buffer = active_recordings[request.sid]
-        buffer.write(audio_data)
         
-        print(f"Ricevuti {len(audio_data)} bytes di audio dal client: {request.sid}")
-    except Exception as e:
-        print(f"Errore durante la decodifica dell'audio: {e}")
-
-@socketio.on('stop_recording')
-def handle_stop_recording():
-    if request.sid not in active_recordings:
-        emit('error', {'message': 'Nessuna registrazione attiva trovata per questo client'})
-        return
-    
-    # Aspetta un breve momento per assicurarsi che tutti i pacchetti audio siano arrivati
-    if request.sid in last_audio_timestamp:
-        elapsed = time.time() - last_audio_timestamp[request.sid]
-        # Se è passato meno di 0.5 secondi dall'ultimo chunk, attendi un po'
-        if elapsed < 0.5:
-            time.sleep(0.5 - elapsed)
-    
-    try:
-        # Ottieni il buffer audio associato al client
-        audio_buffer = active_recordings[request.sid]
+        # Salva il file audio nella directory
+        timestamp = int(time.time())
+        audio_filename = f"audio_{request.sid}_{timestamp}.webm"
+        audio_path = os.path.join(AUDIO_DIR, audio_filename)
         
-        # Verifica che ci siano dati nel buffer
-        audio_buffer.seek(0, io.SEEK_END)
-        size = audio_buffer.tell()
-        if size == 0:
-            emit('error', {'message': 'Nessun dato audio registrato'})
-            return
-            
-        # Reimposta il cursore del buffer all'inizio
-        audio_buffer.seek(0)
+        with open(audio_path, 'wb') as audio_file:
+            audio_file.write(audio_data)
+        
+        print(f"File audio salvato: {audio_path}")
+        
+        # Crea un buffer in memoria per la trascrizione
+        audio_buffer = io.BytesIO(audio_data)
         
         # Trascrivi l'audio
         transcription_result = transcribe_audio_from_buffer(audio_buffer)
         
-        # Invia la trascrizione all'oste e ottieni la risposta
+        # Invia la trascrizione all'NPC e ottieni la risposta
         if request.sid in npc_instances:
-            # L'oste risponde alla trascrizione
-            oste_response = npc_instances[request.sid].get_response(transcription_result)
-            # Invia la risposta dell'oste al client
+            npc_response = npc_instances[request.sid].get_response(transcription_result)
+            # Invia la risposta dell'NPC al client
             emit('npc_response', {
-                'text': oste_response, 
+                'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
                 'user_message': transcription_result  # Invia anche il messaggio dell'utente
             })
         else:
             # Se per qualche motivo non c'è un'istanza NPC, creiamone una nuova
-            npc_instances[request.sid] = NPC("Oste Barnaba", oste_prompt)
-            oste_response = npc_instances[request.sid].get_response(transcription_result)
+            npc_instances[request.sid] = NPC("Oste", oste_prompt)
+            npc_response = npc_instances[request.sid].get_response(transcription_result)
             emit('npc_response', {
-                'text': oste_response, 
+                'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
                 'user_message': transcription_result
             })
         
-        # Pulizia
-        del active_recordings[request.sid]
-        if request.sid in last_audio_timestamp:
-            del last_audio_timestamp[request.sid]
-        
-        print(f"Risposta dell'oste inviata al client: {request.sid}")
+        print(f"Risposta dell'NPC inviata al client: {request.sid}")
     except Exception as e:
-        print(f"Errore durante l'elaborazione: {e}")
+        print(f"Errore durante l'elaborazione dell'audio: {e}")
         emit('error', {'message': f'Errore: {str(e)}'})
 
 @socketio.on('send_message')
@@ -170,15 +131,15 @@ def handle_message(data):
         return
     
     try:
-        # Ottieni la risposta dall'oste
-        oste_response = npc_instances[request.sid].get_response(message)
+        # Ottieni la risposta dall'NPC
+        npc_response = npc_instances[request.sid].get_response(message)
         # Invia la risposta al client
         emit('npc_response', {
-            'text': oste_response, 
+            'text': npc_response, 
             'npc_name': npc_instances[request.sid].name,
             'user_message': message  # Aggiungiamo il messaggio dell'utente
         })
-        print(f"Risposta dell'oste (testo) inviata al client: {request.sid}")
+        print(f"Risposta dell'NPC (testo) inviata al client: {request.sid}")
     except Exception as e:
         print(f"Errore durante l'elaborazione del messaggio: {e}")
         emit('error', {'message': f'Errore: {str(e)}'})

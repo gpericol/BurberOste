@@ -10,8 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let mediaRecorder;
     let audioChunks = [];
     let isRecording = false;
-    const streamInterval = 1000; // Intervallo fisso a 1 secondo
-    let streamIntervalId;
     let audioStream;
     
     // Connessione WebSocket
@@ -95,17 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioChunks = [];
                 updateStatus('Registrazione in corso...', 'alert-warning');
                 recordButton.classList.add('active');
-                
-                // Avvia lo streaming periodico
-                streamIntervalId = setInterval(() => {
-                    if (audioChunks.length > 0) {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        sendAudioChunk(audioBlob);
-                        // Non svuotiamo completamente i chunk per evitare interruzioni
-                        // ma teniamo solo l'ultimo per assicurare la continuità
-                        audioChunks = audioChunks.slice(-1);
-                    }
-                }, streamInterval);
             };
             
             // Quando la registrazione è completa
@@ -113,18 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatus('L\'oste sta ascoltando...', 'alert-info');
                 recordButton.classList.remove('active');
                 
-                // Interrompi lo streaming periodico
-                clearInterval(streamIntervalId);
-                
-                // Invia tutti i chunk rimanenti
+                // Crea un blob con tutti i chunk e invialo al server
                 if (audioChunks.length > 0) {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    sendAudioChunk(audioBlob);
+                    sendCompleteAudio(audioBlob);
                     audioChunks = [];
                 }
-                
-                // Notifica il server che la registrazione è terminata
-                socket.emit('stop_recording');
             };
             
             updateStatus('Pronto per interagire con l\'oste', 'alert-success');
@@ -134,13 +115,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Funzione per inviare un chunk audio al server
-    function sendAudioChunk(blob) {
+    // Funzione per inviare l'audio completo al server
+    function sendCompleteAudio(blob) {
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
             const base64data = reader.result;
-            socket.emit('audio_data', base64data);
+            // Invia l'audio completo e notifica che la registrazione è terminata
+            socket.emit('complete_audio', base64data);
         };
     }
     
@@ -154,11 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isRecording) {
             isRecording = true;
             
-            // Notifica il server dell'inizio della registrazione
-            socket.emit('start_recording');
-            
-            // Avvia la registrazione con timeslice più piccolo
-            mediaRecorder.start(10); // Raccoglie chunk ogni 10ms per maggiore precisione
+            // Avvia la registrazione
+            mediaRecorder.start();
             
             updateStatus('Sto ascoltando...', 'alert-warning');
         }
