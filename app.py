@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import base64
 import os
@@ -7,6 +7,7 @@ import json
 import time
 from dotenv import load_dotenv
 from openai import OpenAI
+from NPC import NPC  # Importiamo la classe NPC
 
 load_dotenv()
 
@@ -34,6 +35,22 @@ except Exception as e:
 active_recordings = {}
 # Dizionario per tenere traccia dei timestamp dell'ultimo chunk audio ricevuto
 last_audio_timestamp = {}
+# Dizionario per tenere traccia delle istanze NPC
+npc_instances = {}
+
+# Inizializzazione dell'oste
+oste_prompt = """
+Sei Barnaba, l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale.
+Sei noto per il tuo carattere burbero e diretto.
+
+Caratteristiche del tuo personaggio:
+- Usi un linguaggio colorito con occasionali espressioni dialettali
+- Conosci tutti i pettegolezzi della città e molte storie interessanti
+- La tua locanda è frequentata da avventurieri, mercanti e gente del posto
+- stai parlando con un bardo e tu reputi i bardi dei perditempo
+
+Rispondi in modo conciso (massimo 2-3 frasi) e mantieni sempre il tuo carattere burbero ma saggio.
+"""
 
 @app.route('/')
 def index():
@@ -42,16 +59,20 @@ def index():
 @socketio.on('connect')
 def handle_connect():
     print(f'Client connesso: {request.sid}')
+    # Crea un'istanza di NPC per questo client
+    npc_instances[request.sid] = NPC("Oste Barnaba", oste_prompt)
     emit('connect_response', {'status': 'connesso'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f'Client disconnesso: {request.sid}')
-    # Elimina eventuali registrazioni attive per questo client
+    # Elimina eventuali registrazioni attive e istanze NPC per questo client
     if request.sid in active_recordings:
         del active_recordings[request.sid]
     if request.sid in last_audio_timestamp:
         del last_audio_timestamp[request.sid]
+    if request.sid in npc_instances:
+        del npc_instances[request.sid]
 
 @socketio.on('start_recording')
 def handle_start_recording():
@@ -88,7 +109,6 @@ def handle_stop_recording():
         return
     
     # Aspetta un breve momento per assicurarsi che tutti i pacchetti audio siano arrivati
-    # Controlla se è passato del tempo dall'ultimo chunk audio ricevuto
     if request.sid in last_audio_timestamp:
         elapsed = time.time() - last_audio_timestamp[request.sid]
         # Se è passato meno di 0.5 secondi dall'ultimo chunk, attendi un po'
@@ -112,18 +132,56 @@ def handle_stop_recording():
         # Trascrivi l'audio
         transcription_result = transcribe_audio_from_buffer(audio_buffer)
         
-        # Invia la trascrizione al client
-        emit('transcription_result', {'text': transcription_result})
+        # Invia la trascrizione all'oste e ottieni la risposta
+        if request.sid in npc_instances:
+            # L'oste risponde alla trascrizione
+            oste_response = npc_instances[request.sid].get_response(transcription_result)
+            # Invia la risposta dell'oste al client
+            emit('npc_response', {
+                'text': oste_response, 
+                'npc_name': npc_instances[request.sid].name,
+                'user_message': transcription_result  # Invia anche il messaggio dell'utente
+            })
+        else:
+            # Se per qualche motivo non c'è un'istanza NPC, creiamone una nuova
+            npc_instances[request.sid] = NPC("Oste Barnaba", oste_prompt)
+            oste_response = npc_instances[request.sid].get_response(transcription_result)
+            emit('npc_response', {
+                'text': oste_response, 
+                'npc_name': npc_instances[request.sid].name,
+                'user_message': transcription_result
+            })
         
         # Pulizia
         del active_recordings[request.sid]
         if request.sid in last_audio_timestamp:
             del last_audio_timestamp[request.sid]
         
-        print(f"Trascrizione completata e inviata al client: {request.sid}")
+        print(f"Risposta dell'oste inviata al client: {request.sid}")
     except Exception as e:
-        print(f"Errore durante la trascrizione: {e}")
-        emit('error', {'message': f'Errore durante la trascrizione: {str(e)}'})
+        print(f"Errore durante l'elaborazione: {e}")
+        emit('error', {'message': f'Errore: {str(e)}'})
+
+@socketio.on('send_message')
+def handle_message(data):
+    message = data.get('message', '')
+    if not message or request.sid not in npc_instances:
+        emit('error', {'message': 'Messaggio vuoto o sessione non valida'})
+        return
+    
+    try:
+        # Ottieni la risposta dall'oste
+        oste_response = npc_instances[request.sid].get_response(message)
+        # Invia la risposta al client
+        emit('npc_response', {
+            'text': oste_response, 
+            'npc_name': npc_instances[request.sid].name,
+            'user_message': message  # Aggiungiamo il messaggio dell'utente
+        })
+        print(f"Risposta dell'oste (testo) inviata al client: {request.sid}")
+    except Exception as e:
+        print(f"Errore durante l'elaborazione del messaggio: {e}")
+        emit('error', {'message': f'Errore: {str(e)}'})
 
 def transcribe_audio_from_buffer(audio_buffer):
     if client is None:
@@ -150,7 +208,7 @@ def transcribe_audio_from_buffer(audio_buffer):
         )
         fine_chiamata = time.time()
         tempo_impiegato = fine_chiamata - inizio_chiamata
-        print(f"Tempo impiegato per la chiamata OpenAI: {tempo_impiegato:.2f} secondi")
+        print(f"Tempo impiegato per la trascrizione: {tempo_impiegato:.2f} secondi")
         
         return transcription
     except Exception as e:

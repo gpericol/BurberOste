@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordButton = document.getElementById('recordButton');
     const transcriptionDiv = document.getElementById('transcription');
     const statusDiv = document.getElementById('status');
+    const conversationBox = document.getElementById('conversation-box');
+    const npcName = document.getElementById('npc-name');
     
     // Variabili per la registrazione
     let mediaRecorder;
@@ -16,16 +18,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
     
     socket.on('connect', () => {
-        updateStatus('Connesso al server', 'alert-success');
+        updateStatus('Connesso alla taverna', 'alert-success');
     });
     
     socket.on('disconnect', () => {
-        updateStatus('Disconnesso dal server', 'alert-danger');
+        updateStatus('Disconnesso dalla taverna', 'alert-danger');
     });
     
-    socket.on('transcription_result', (data) => {
-        transcriptionDiv.innerHTML = `<p>${data.text}</p>`;
-        updateStatus('Trascrizione completata', 'alert-success');
+    // Gestione delle risposte dell'NPC
+    socket.on('npc_response', (data) => {
+        // Aggiungi il messaggio dell'utente alla conversazione (se presente)
+        if (data.user_message) {
+            addToConversation(data.user_message, 'user');
+        }
+        
+        // Aggiungi la risposta dell'NPC alla conversazione
+        addToConversation(data.text, 'npc', data.npc_name);
+        
+        updateStatus('L\'oste ha risposto', 'alert-success');
     });
     
     socket.on('error', (data) => {
@@ -34,8 +44,28 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Funzione per aggiornare lo stato
     function updateStatus(message, className = 'alert-info') {
-        statusDiv.className = `alert ${className}`;
+        statusDiv.className = `alert ${className} small p-2`;
         statusDiv.textContent = message;
+    }
+    
+    // Funzione per aggiungere messaggi alla conversazione
+    function addToConversation(message, type, speaker = '') {
+        const messageElement = document.createElement('div');
+        messageElement.className = type === 'npc' ? 'npc-message mb-3' : 'user-message mb-3 text-end';
+        
+        if (type === 'npc') {
+            messageElement.innerHTML = `<strong>${speaker}:</strong> <span>${message}</span>`;
+            // Aggiunge una classe che potrebbe essere usata per stilizzare
+            messageElement.classList.add('npc-response');
+        } else {
+            messageElement.innerHTML = `<span>${message}</span>`;
+        }
+        
+        // Aggiungi il messaggio alla conversazione
+        conversationBox.appendChild(messageElement);
+        
+        // Scroll al fondo della conversazione
+        conversationBox.scrollTop = conversationBox.scrollHeight;
     }
     
     // Inizializza la registrazione audio
@@ -80,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Quando la registrazione è completa
             mediaRecorder.onstop = () => {
-                updateStatus('Elaborazione audio...', 'alert-info');
+                updateStatus('L\'oste sta ascoltando...', 'alert-info');
                 recordButton.classList.remove('active');
                 
                 // Interrompi lo streaming periodico
@@ -97,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('stop_recording');
             };
             
-            updateStatus('Pronto per registrare', 'alert-success');
+            updateStatus('Pronto per interagire con l\'oste', 'alert-success');
         } catch (err) {
             console.error('Errore accesso al microfono:', err);
             updateStatus(`Errore accesso al microfono: ${err.message}`, 'alert-danger');
@@ -130,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Avvia la registrazione con timeslice più piccolo
             mediaRecorder.start(10); // Raccoglie chunk ogni 10ms per maggiore precisione
             
-            transcriptionDiv.innerHTML = '<p class="text-muted">Registrazione in corso...</p>';
+            updateStatus('Sto ascoltando...', 'alert-warning');
         }
     }
     
@@ -141,12 +171,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
-                updateStatus('Registrazione terminata, in elaborazione...', 'alert-info');
+                updateStatus('Elaborazione del messaggio vocale...', 'alert-info');
             }
         }
     }
     
-    // Gestione eventi del pulsante
+    // Gestione eventi del pulsante di registrazione
     recordButton.addEventListener('mousedown', startRecording);
     recordButton.addEventListener('touchstart', (e) => {
         e.preventDefault(); // Previeni eventi touch duplicati
@@ -159,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stopRecording();
     });
     
-    // Gestione della barra spaziatrice
+    // Gestione della barra spaziatrice per la registrazione
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !isRecording) {
             e.preventDefault(); // Previeni lo scroll della pagina

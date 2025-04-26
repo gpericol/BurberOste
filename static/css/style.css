@@ -1,46 +1,133 @@
+/* Stili di base */
+body {
+    font-family: 'Georgia', serif;
+    background-color: #1c1c1c;
+    background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+}
+
+/* Pulsante di registrazione */
 .recording-btn {
-    width: 150px;
-    height: 150px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
-    background-color: #dc3545;
+    background-color: #8B4513;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    border: 3px solid #6B3207;
 }
 
 .recording-btn:hover {
     transform: scale(1.05);
+    background-color: #A0522D;
 }
 
 .recording-btn.active {
-    background-color: #dc3545;
+    background-color: #A52A2A;
     animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        box-shadow: 0 4px 8px rgba(165, 42, 42, 0.4);
     }
     50% {
         transform: scale(1.05);
-        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.5);
+        box-shadow: 0 4px 12px rgba(165, 42, 42, 0.6);
     }
     100% {
         transform: scale(1);
-        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        box-shadow: 0 4px 8px rgba(165, 42, 42, 0.4);
     }
 }
 
-.transcription {
-    min-height: 100px;
-    border-radius: 10px;
-    background-color: #f8f9fa;
-    padding: 15px;
-    margin-top: 20px;
+/* Box di conversazione */
+.conversation-box {
+    background-color: #1a1a1a !important;
+    border: 1px solid #444 !important;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Messaggi NPC */
+.npc-message {
+    background-color: #2c2c2c;
+    padding: 10px 15px;
+    border-radius: 10px 10px 10px 0;
+    margin-bottom: 12px;
+    max-width: 80%;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.npc-message strong {
+    color: #ffc107;
+}
+
+/* Messaggi utente */
+.user-message {
+    background-color: #3B5249;
+    padding: 10px 15px;
+    border-radius: 10px 10px 0 10px;
+    margin-bottom: 12px;
+    margin-left: auto;
+    max-width: 80%;
+    color: #e9e9e9;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Avatar NPC */
+.npc-avatar {
+    background-color: #555;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffc107;
+    border: 2px solid #ffc107;
+}
+
+/* Responsività */
+@media (max-width: 768px) {
+    .recording-btn {
+        width: 100px;
+        height: 100px;
+        font-size: 1rem;
+    }
+    
+    .npc-message, .user-message {
+        max-width: 90%;
+    }
+}
+
+/* Stilizzazione degli input */
+input.bg-dark::placeholder {
+    color: #6c757d;
+}
+
+input.bg-dark:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    border-color: #ffc107;
+}
+
+/* Barra di progresso personalizzata */
+.progress {
+    background-color: #2c2c2c;
+    height: 25px !important;
+}
+
+/* Effetti di transizione */
+.npc-response {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
