@@ -11,6 +11,8 @@ class UIManager {
         this.statusDiv = document.getElementById('status');
         this.conversationBox = document.getElementById('conversation-box');
         this.npcName = document.getElementById('npc-name');
+        this.sympathyBar = document.getElementById('sympathy-bar');
+        this.npcImage = document.querySelector('.npc-avatar img'); // Riferimento all'immagine dell'NPC
         
         // Reference al gestore della sintesi vocale
         this.speechManager = speechManager;
@@ -45,6 +47,53 @@ class UIManager {
         this.conversationBox.scrollTop = this.conversationBox.scrollHeight;
     }
     
+    // Aggiorna la visualizzazione del livello di simpatia
+    updateSympathyBar(level) {
+        if (!this.sympathyBar) return;
+        
+        // Calcola la percentuale per la larghezza della barra di progresso
+        const percentage = (level / 10) * 100;
+        
+        // Aggiorna la larghezza della barra
+        this.sympathyBar.style.width = `${percentage}%`;
+        
+        // Aggiorna il testo della barra
+        this.sympathyBar.textContent = `${level}/10`;
+        
+        // Aggiorna l'attributo aria-valuenow per l'accessibilità
+        this.sympathyBar.setAttribute('aria-valuenow', level);
+        
+        // Cambia il colore della barra in base al livello di simpatia
+        if (level < 3) {
+            this.sympathyBar.className = 'progress-bar bg-danger';
+        } else if (level < 7) {
+            this.sympathyBar.className = 'progress-bar bg-warning';
+        } else {
+            this.sympathyBar.className = 'progress-bar bg-success';
+        }
+        
+        // Aggiorna l'immagine dell'NPC in base al livello di simpatia
+        this.updateNpcImage(level);
+    }
+    
+    // Funzione per aggiornare l'immagine dell'NPC in base al livello di simpatia
+    updateNpcImage(level) {
+        if (!this.npcImage) return;
+        
+        let imageName;
+        if (level < 4) {
+            imageName = 'npc_0.png';
+        } else if (level <= 7) {
+            imageName = 'npc_1.png';
+        } else {
+            imageName = 'npc_2.png';
+        }
+        
+        // Aggiorna l'src dell'immagine
+        const basePath = this.npcImage.src.substring(0, this.npcImage.src.lastIndexOf('/') + 1);
+        this.npcImage.src = basePath + imageName;
+    }
+    
     // Gestisce una risposta dell'NPC
     handleNpcResponse(data) {
         // Aggiungi il messaggio dell'utente alla conversazione (se presente)
@@ -54,6 +103,11 @@ class UIManager {
         
         // Aggiungi la risposta dell'NPC alla conversazione
         this.addToConversation(data.text, 'npc', data.npc_name);
+        
+        // Aggiorna la barra di simpatia se il dato è presente
+        if (data.sympathy_level !== undefined) {
+            this.updateSympathyBar(data.sympathy_level);
+        }
         
         this.updateStatus('L\'oste ha risposto', 'alert-success');
     }

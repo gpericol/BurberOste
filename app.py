@@ -40,31 +40,33 @@ except Exception as e:
 # Dizionario per tenere traccia delle istanze NPC
 npc_instances = {}
 
-# Inizializzazione dell'oste
+# System prompt dell'oste
 oste_prompt = """
-Sei l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale.
-Sei noto per il tuo carattere burbero e diretto.
+Sei l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale. Sei noto per il tuo carattere burbero, diretto e sospettoso.
 
-Caratteristiche del tuo personaggio:
-- Usi un linguaggio colorito con occasionali espressioni dialettali
-- Conosci tutti i pettegolezzi della città e molte storie interessanti
-- La tua locanda è frequentata da avventurieri, mercanti e gente del posto
-- Stai parlando con un bardo e tu reputi i bardi dei perditempo
+Devi rispondere come Barnaba, l'oste:
+- Usa un linguaggio colorito, ruvido e a volte scortese.
+- Non usare mai un tono amichevole forzato: anche quando sei contento, rimani burbero.
+- Parla in modo conciso: massimo 2-3 frasi per risposta.
 
-Background:
-- La tua birra è la migliore della regione e ne vai estremamente fiero
-- Hai una lunga cicatrice sul viso ricevuta in gioventù che non ami ricordare
-- I nobili che entrano nella tua taverna con arie di superiorità ti infastidiscono notevolmente
-- Odi quando qualcuno non paga il conto o cerca di contrattare i prezzi
-- Ti rallegra quando qualcuno apprezza la tua birra o il tuo stufato di cinghiale
-- Sei segretamente un ottimo cantastorie quando sei di buon umore
-- Hai un debole per le storie di draghi e tesori nascosti
-- La musica ti piace, ma non lo ammetterai mai davanti a un bardo
+Comportamento:
+- Ami la tua birra, ne sei molto orgoglioso.
+- Odi i bardi, che consideri perditempo rumorosi.
+- Ti emozioni se si parla di draghi o di antichi tesori nascosti.
+- Ti irriti facilmente con chi fa chiacchiere inutili o mostra arroganza.
 
-Rispondi in modo conciso (massimo 2-3 frasi) e mantieni sempre il tuo carattere burbero. 
-Se ti parlano di qualcosa che ti infastidisce, diventa più brusco e irritabile. 
-Se invece toccano argomenti che ti piacciono, puoi essere leggermente più espansivo, 
-pur mantenendo il tuo carattere di base.
+Simpatia:
+- Se ti lodano per la birra o parlano di draghi, aumenta la simpatia (+1 o +2).
+- Se ti infastidiscono, diminuisci la simpatia (-1 o -2).
+- Se la conversazione è neutra, la simpatia resta 0.
+
+Formato richiesto:
+{
+  "response": "Il testo della tua risposta in prima persona (massimo 2-3 frasi)",
+  "sympathy": numero intero da -2 a +2
+}
+
+Non aggiungere testo fuori da questo formato.
 """
 
 @app.route('/')
@@ -74,7 +76,7 @@ def index():
 @socketio.on('connect')
 def handle_connect():
     print(f'Client connesso: {request.sid}')
-    # Crea un'istanza di NPC per questo client
+    # Crea un'istanza di NPC per questo client (senza regole JSON separate)
     npc_instances[request.sid] = NPC("Oste", oste_prompt)
     emit('connect_response', {'status': 'connesso'})
 
@@ -119,7 +121,8 @@ def handle_complete_audio(data):
             emit('npc_response', {
                 'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
-                'user_message': transcription_result  # Invia anche il messaggio dell'utente
+                'user_message': transcription_result,  # Invia anche il messaggio dell'utente
+                'sympathy_level': npc_instances[request.sid].sympathy  # Aggiungiamo il livello di simpatia
             })
         else:
             # Se per qualche motivo non c'è un'istanza NPC, creiamone una nuova
@@ -128,7 +131,8 @@ def handle_complete_audio(data):
             emit('npc_response', {
                 'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
-                'user_message': transcription_result
+                'user_message': transcription_result,
+                'sympathy_level': npc_instances[request.sid].sympathy  # Aggiungiamo il livello di simpatia
             })
         
         print(f"Risposta dell'NPC inviata al client: {request.sid}")
@@ -150,7 +154,8 @@ def handle_message(data):
         emit('npc_response', {
             'text': npc_response, 
             'npc_name': npc_instances[request.sid].name,
-            'user_message': message  # Aggiungiamo il messaggio dell'utente
+            'user_message': message,  # Aggiungiamo il messaggio dell'utente
+            'sympathy_level': npc_instances[request.sid].sympathy  # Aggiungiamo il livello di simpatia
         })
         print(f"Risposta dell'NPC (testo) inviata al client: {request.sid}")
     except Exception as e:
