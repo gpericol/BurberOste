@@ -37,7 +37,7 @@ class SpeechManager {
         
         // Generazione frase casuale
         let phrase = '';
-        const wordCount = 5 + Math.floor(Math.random() * 8);
+        const wordCount = 3 + Math.floor(Math.random() * 5);
         
         for (let i = 0; i < wordCount; i++) {
             // 30% di probabilità di usare una parola spagnola
@@ -101,8 +101,8 @@ class SpeechManager {
         }
         
         // Impostazioni richieste: pitch basso e velocità alta
-        utterance.pitch = 0.3;  // Valore basso = tono più basso (range 0-2)
-        utterance.rate = 1.3;   // Valore alto = parlato più veloce (range 0.1-10)
+        utterance.pitch = 0.5;  // Valore basso = tono più basso (range 0-2)
+        utterance.rate = 0.8;   // Valore alto = parlato più veloce (range 0.1-10)
         
         // Riproduci la sintesi vocale
         speechSynthesis.speak(utterance);
