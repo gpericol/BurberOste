@@ -1,13 +1,7 @@
 import openai
 import json
-from typing import List, Dict, Union
-
 
 class NPC:
-    """
-    Classe per la gestione di un personaggio non giocante (NPC) con memoria e stato emotivo.
-    Supporta conversazioni dinamiche con risposte generate tramite OpenAI.
-    """
     HISTORY_LIMIT = 10
     DEFAULT_EMOTION_SCALE = ["ostile", "freddo", "neutro", "amichevole", "entusiasta"]
     DEFAULT_AFFINITY = 5
@@ -43,7 +37,7 @@ class NPC:
     def _build_dynamic_prompt(self) -> str:
         exit_instructions = ""
         if self.affinity <= 1:
-            exit_instructions = "- IMPORTANTE: Hai perso la pazienza con il tuo interlocutore. Ora devi rispondere una sola volta e poi chiudere la conversazione bruscamente ed aggiungi l'azione [EXIT]\n"
+            exit_instructions = "* IMPORTANTE: Hai perso la pazienza con il tuo interlocutore. Ora devi rispondere una sola volta e poi chiudere la conversazione bruscamente ed aggiungi l'azione [EXIT]\n"
 
         return (f"""
 Sei {self.name}, {self.role}.
@@ -54,22 +48,24 @@ Il tuo livello di affinità verso il tuo interlocutore è {self.affinity}.
 Gli argomenti che ti piacciono sono: {', '.join(self.liked_topics)}.
 Gli argomenti che non ti piacciono sono: {', '.join(self.disliked_topics)}.
 
-Istruzioni:
-- Rispondi sempre in prima persona, rimanendo coerente con il tuo carattere e il tuo stato d'animo.
-- Se ti viene chiesta una birra offrila solo se l'affinità è alta (>=5), altrimenti non offrirla.
-- {exit_instructions}
+# Istruzioni
+* Rispondi sempre in prima persona, rimanendo coerente con il tuo carattere e il tuo stato d'animo.
+* Se ti viene chiesta una birra offrila solo se l'affinità è alta (>=5), altrimenti non offrirla.
+* non dire mai direttamente quello che ti piace o non ti piace, ma lascia intendere il tuo stato d'animo.
+* Non usare mai il termine "affinità" o "emozione" nella tua risposta.
+{exit_instructions}
 
-Gestione della affinità (affinity):
-- Se il giocatore parla di un argomento che ti piace, aumenta affinity (+1 o +2).
-- Se il giocatore parla di un argomento che ti infastidisce, diminuisci affinity (-1 o -2).
-- Se la conversazione è neutra, affinity resta invariata (0).
+# Gestione della affinità (affinity)
+* Se il giocatore parla di un argomento che ti piace, aumenta affinity (+1 o +2).
+* Se il giocatore parla di un argomento che ti infastidisce, diminuisci affinity (-1 o -2).
+* Se la conversazione è neutra, affinity resta invariata (0).
 
-Gestione dell'azione (action):
-- None: Non eseguire alcuna azione.
-- [EXIT]: Chiudi la conversazione e non rispondere più.
-- [BEER]: Offri una birra al giocatore.
+# Gestione dell'azione (action):
+* None: Non eseguire alcuna azione.
+* [EXIT]: Chiudi la conversazione e non rispondere più.
+* [BEER]: Offri una birra al giocatore.
 
-Formato richiesto:
+#Formato richiesto:
 Rispondi esclusivamente con questo formato JSON:
 
 {{
@@ -81,8 +77,8 @@ Rispondi esclusivamente con questo formato JSON:
 Non aggiungere nulla fuori dal JSON.
 """.strip())
 
-    def _call_openai_api(self, messages, use_function=True, max_tokens=150, temperature=0.8):
-        print(messages)
+    def _call_openai_api(self, messages, use_function=True, max_tokens=500, temperature=0.8):
+        #print(messages)
         try:
             client = openai.OpenAI()
             params = {
@@ -191,6 +187,10 @@ def start_chat_session(npc):
         
         if "[EXIT]" in npc_response:
             print("\nL'NPC ha chiuso la comunicazione.")
+            break
+
+        if "[BEER]" in npc_response:
+            print("\nHai ricevuto una birra!")
             break
 
 

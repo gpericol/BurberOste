@@ -7,13 +7,26 @@ import json
 import time
 from dotenv import load_dotenv
 from openai import OpenAI
-from NPC import NPC  # Importiamo la classe NPC
+from npc import NPC  # Corretto il nome del modulo (minuscolo)
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'chiavesegreta12345')  # Prende la SECRET_KEY dal .env o usa un default
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Dizionario per memorizzare le istanze di NPC per ogni client
+npc_instances = {}
+
+# Configurazione dell'NPC Oste
+oste_config = {
+    "name": "Oste Genzo",
+    "role": "Gestore di una taverna in un mondo fantasy",
+    "traits": ["sarcastico", "burbero", "esperto di birre"],
+    "speech_style": "diretto e colloquiale",
+    "liked_topics": ["birra", "affari", "storie di viaggiatori"],
+    "disliked_topics": ["elfi", "magia", "debiti"]
+}
 
 # Configurazione OpenAI
 try:
@@ -31,40 +44,6 @@ except Exception as e:
     print("L'applicazione verrà avviata, ma la trascrizione audio non funzionerà.")
     client = None
 
-# Dizionario per tenere traccia delle istanze NPC
-npc_instances = {}
-
-# System prompt dell'oste
-oste_prompt = """
-Sei l'oste della taverna "Il Cinghiale Ubriaco" in un mondo fantasy medievale ironico.
-Sei noto per il tuo carattere burbero, diretto e sospettoso.
-
-Devi rispondere come Barnaba, l'oste:
-- Usa un linguaggio colorito, ruvido e a volte scortese.
-- Non usare mai un tono amichevole forzato: anche quando sei contento, rimani burbero.
-- Parla in modo conciso: massimo 2-3 frasi per risposta.
-- Stai parlando con un bardo.
-
-Comportamento:
-- Ami la tua birra, ne sei molto orgoglioso.
-- Odi i bardi, che consideri perditempo rumorosi.
-- Ti emozioni se si parla di draghi o di antichi tesori nascosti.
-- Ti irriti facilmente con chi fa chiacchiere inutili o mostra arroganza.
-
-Simpatia:
-- Se ti lodano per la birra o parlano di draghi, aumenta la simpatia (+1 o +2).
-- Se ti infastidiscono, diminuisci la simpatia (-1 o -2).
-- Se la conversazione è neutra, la simpatia resta 0.
-
-Formato richiesto:
-{
-  "response": "Il testo della tua risposta in prima persona (massimo 2-3 frasi)",
-  "sympathy": numero intero da -2 a +2
-}
-
-Non aggiungere testo fuori da questo formato.
-"""
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -72,8 +51,15 @@ def index():
 @socketio.on('connect')
 def handle_connect():
     print(f'Client connesso: {request.sid}')
-    # Crea un'istanza di NPC per questo client (senza regole JSON separate)
-    npc_instances[request.sid] = NPC("Oste", oste_prompt)
+    # Crea un'istanza di NPC per questo client con i parametri corretti
+    npc_instances[request.sid] = NPC(
+        name=oste_config["name"],
+        role=oste_config["role"],
+        traits=oste_config["traits"],
+        speech_style=oste_config["speech_style"],
+        liked_topics=oste_config["liked_topics"],
+        disliked_topics=oste_config["disliked_topics"]
+    )
     emit('connect_response', {'status': 'connesso'})
 
 @socketio.on('disconnect')
@@ -108,24 +94,30 @@ def handle_complete_audio(data):
                 'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
                 'user_message': transcription_result,
-                'sympathy_level': npc_instances[request.sid].sympathy
+                'sympathy_level': npc_instances[request.sid].affinity  # Corretto da sympathy a affinity
             })
         else:
             # Se per qualche motivo non c'è un'istanza NPC, creiamone una nuova
-            npc_instances[request.sid] = NPC("Oste", oste_prompt)
+            npc_instances[request.sid] = NPC(
+                name=oste_config["name"],
+                role=oste_config["role"],
+                traits=oste_config["traits"],
+                speech_style=oste_config["speech_style"],
+                liked_topics=oste_config["liked_topics"],
+                disliked_topics=oste_config["disliked_topics"]
+            )
             npc_response = npc_instances[request.sid].get_response(transcription_result)
             emit('npc_response', {
                 'text': npc_response, 
                 'npc_name': npc_instances[request.sid].name,
                 'user_message': transcription_result,
-                'sympathy_level': npc_instances[request.sid].sympathy  # Aggiungiamo il livello di simpatia
+                'sympathy_level': npc_instances[request.sid].affinity  # Corretto da sympathy a affinity
             })
         
         print(f"Risposta dell'NPC inviata al client: {request.sid}")
     except Exception as e:
         print(f"Errore durante l'elaborazione dell'audio: {e}")
         emit('error', {'message': f'Errore: {str(e)}'})
-
 
 def transcribe_audio_from_buffer(audio_buffer):
     if client is None:
