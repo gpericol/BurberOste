@@ -7,7 +7,7 @@ import json
 import time
 from dotenv import load_dotenv
 from openai import OpenAI
-from npc import NPC  # Corretto il nome del modulo (minuscolo)
+from NPC import NPC  # Corretto il nome del modulo (minuscolo)
 
 load_dotenv()
 
@@ -25,7 +25,9 @@ oste_config = {
     "traits": ["sarcastico", "burbero", "esperto di birre"],
     "speech_style": "diretto e colloquiale",
     "liked_topics": ["birra", "affari", "storie di viaggiatori"],
-    "disliked_topics": ["elfi", "magia", "debiti"]
+    "disliked_topics": ["elfi", "magia", "debiti"],
+    "actions": ["* [BEER]: Offri una birra al giocatore.", "* [THROWOUT]: Caccia il giocatore dalla taverna."],
+    "instructions": ["* Offri birra solo a chi è particolarmente generoso o simpatico.", "* Parla sempre del tuo locale con orgoglio."]
 }
 
 # Configurazione OpenAI
@@ -58,7 +60,9 @@ def handle_connect():
         traits=oste_config["traits"],
         speech_style=oste_config["speech_style"],
         liked_topics=oste_config["liked_topics"],
-        disliked_topics=oste_config["disliked_topics"]
+        disliked_topics=oste_config["disliked_topics"],
+        actions=oste_config["actions"],
+        instructions=oste_config["instructions"]
     )
     emit('connect_response', {'status': 'connesso'})
 
@@ -104,7 +108,9 @@ def handle_complete_audio(data):
                 traits=oste_config["traits"],
                 speech_style=oste_config["speech_style"],
                 liked_topics=oste_config["liked_topics"],
-                disliked_topics=oste_config["disliked_topics"]
+                disliked_topics=oste_config["disliked_topics"],
+                actions=oste_config["actions"],
+                instructions=oste_config["instructions"]
             )
             npc_response = npc_instances[request.sid].get_response(transcription_result)
             emit('npc_response', {

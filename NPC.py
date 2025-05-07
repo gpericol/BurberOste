@@ -7,7 +7,8 @@ class NPC:
     DEFAULT_AFFINITY = 5
     
     def __init__(self, name, role, traits, speech_style, affinity=DEFAULT_AFFINITY, 
-                 emotion_scale=None, liked_topics=None, disliked_topics=None):
+                 emotion_scale=None, liked_topics=None, disliked_topics=None,
+                 actions=None, instructions=None):
         self.name = name
         self.role = role
         self.traits = traits
@@ -16,6 +17,8 @@ class NPC:
         self.emotion_scale = emotion_scale or self.DEFAULT_EMOTION_SCALE
         self.liked_topics = liked_topics or []
         self.disliked_topics = disliked_topics or []
+        self.actions = actions or []
+        self.instructions = instructions or []
         self.emotion = ""
         self.conversation_history = []
 
@@ -35,6 +38,7 @@ class NPC:
         self.emotion = self.emotion_scale[index]
 
     def _build_dynamic_prompt(self) -> str:
+        # Utilizziamo self.actions e self.instructions invece di valori hardcoded
         exit_instructions = ""
         if self.affinity <= 1:
             exit_instructions = "* IMPORTANTE: Hai perso la pazienza con il tuo interlocutore. Ora devi rispondere una sola volta e poi chiudere la conversazione bruscamente ed aggiungi l'azione [EXIT]\n"
@@ -50,10 +54,10 @@ Gli argomenti che non ti piacciono sono: {', '.join(self.disliked_topics)}.
 
 # Istruzioni
 * Rispondi sempre in prima persona, rimanendo coerente con il tuo carattere e il tuo stato d'animo.
-* Se ti viene chiesta una birra offrila solo se l'affinità è alta (>=5), altrimenti non offrirla.
-* non dire mai direttamente quello che ti piace o non ti piace, ma lascia intendere il tuo stato d'animo.
-* Non usare mai il termine "affinità" o "emozione" nella tua risposta.
 {exit_instructions}
+* non dire mai direttamente quello che ti piace o non ti piace, ma lascialo intendere.
+* Non usare mai il termine "affinità" o "emozione" nella tua risposta.
+{chr(10).join(self.instructions)}
 
 # Gestione della affinità (affinity)
 * Se il giocatore parla di un argomento che ti piace, aumenta affinity (+1 o +2).
@@ -63,7 +67,7 @@ Gli argomenti che non ti piacciono sono: {', '.join(self.disliked_topics)}.
 # Gestione dell'azione (action):
 * None: Non eseguire alcuna azione.
 * [EXIT]: Chiudi la conversazione e non rispondere più.
-* [BEER]: Offri una birra al giocatore.
+{chr(10).join(self.actions)}
 
 #Formato richiesto:
 Rispondi esclusivamente con questo formato JSON:
@@ -78,7 +82,7 @@ Non aggiungere nulla fuori dal JSON.
 """.strip())
 
     def _call_openai_api(self, messages, use_function=True, max_tokens=500, temperature=0.8):
-        #print(messages)
+        print(messages)
         try:
             client = openai.OpenAI()
             params = {
